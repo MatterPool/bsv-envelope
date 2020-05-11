@@ -1,0 +1,74 @@
+{
+  "nested": {
+    "protobuf": {
+      "nested": {
+        "Envelope": {
+          "fields": {
+            "Version": {
+              "type": "uint64",
+              "id": 1
+            },
+            "Type": {
+              "type": "bytes",
+              "id": 2
+            },
+            "Identifier": {
+              "type": "bytes",
+              "id": 3
+            },
+            "MetaNet": {
+              "type": "MetaNet",
+              "id": 4
+            },
+            "EncryptedPayloads": {
+              "rule": "repeated",
+              "type": "EncryptedPayload",
+              "id": 5
+            }
+          }
+        },
+        "MetaNet": {
+          "fields": {
+            "Index": {
+              "type": "uint32",
+              "id": 1
+            },
+            "Parent": {
+              "type": "bytes",
+              "id": 2
+            }
+          }
+        },
+        "EncryptedPayload": {
+          "fields": {
+            "Sender": {
+              "type": "uint32",
+              "id": 1
+            },
+            "Receivers": {
+              "rule": "repeated",
+              "type": "Receiver",
+              "id": 2
+            },
+            "Payload": {
+              "type": "bytes",
+              "id": 3
+            }
+          }
+        },
+        "Receiver": {
+          "fields": {
+            "Index": {
+              "type": "uint32",
+              "id": 1
+            },
+            "EncryptedKey": {
+              "type": "bytes",
+              "id": 2
+            }
+          }
+        }
+      }
+    }
+  }
+}
