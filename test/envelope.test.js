@@ -1,7 +1,7 @@
 'use strict';
 var expect = require('chai').expect;
 var index = require('../dist/index.js');
-
+var bsv = require('bsv');
 describe('message-envelope', () => {
 
    it('should be valid minimal envelope', async () => {
@@ -17,7 +17,7 @@ describe('message-envelope', () => {
       expect(message.getPayload().toString('hex')).to.eql(data.toString('hex'));
       expect(message).to.eql({
          "encryptedPayloads_": [],
-         "metanet_": undefined,
+         // "metanet_": undefined,
          "payloadIdentifier_": "company_logo.jpg",
          "payloadProtocol_": "F",
          "payloadType_": "image/jpg",
@@ -48,6 +48,7 @@ describe('message-envelope', () => {
 
    it('should be valid minimal envelope with metanet node', async () => {
       const message = new index.Envelope();
+      expect(message.getPayloadProtocol()).to.eql('F');
       message.setPayloadIdentifier('company_logo.jpg');
       expect(message.getPayloadIdentifier()).to.eql('company_logo.jpg');
 
@@ -59,7 +60,7 @@ describe('message-envelope', () => {
       expect(message.getPayload().toString('hex')).to.eql(data.toString('hex'));
       expect(message).to.eql({
          "encryptedPayloads_": [],
-         "metanet_": undefined,
+         // "metanet_": undefined,
          "payloadIdentifier_": "company_logo.jpg",
          "payloadProtocol_": "F",
          "payloadType_": "image/jpg",
@@ -86,6 +87,14 @@ describe('message-envelope', () => {
       const fromScriptMessage = index.Envelope.fromScript(outputScript);
       expect(fromScriptMessage).to.eql(message);
 
+   });
+
+   it('should create file with 1 encrypted payload', async () => {
+      const message = new index.Envelope();
+   });
+
+   it('should create file with 2 encrypted payloads', async () => {
+      const message = new index.Envelope();
    });
 
 });

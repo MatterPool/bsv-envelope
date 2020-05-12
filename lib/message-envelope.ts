@@ -1,32 +1,70 @@
+/**
+Open BSV License
+Copyright (c) 2020 MatterPool Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+1 - The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+2 - The Software, and any software that is derived from the Software or parts thereof,
+can only be used on the Bitcoin SV blockchains. The Bitcoin SV blockchains are defined,
+for purposes of this license, as the Bitcoin blockchain containing block height #556767
+with the hash "000000000000000001d956714215d96ffc00e0afda4cd0a96c96f8d802b1662b" and
+the test blockchains that are supported by the un-modified Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+*/
 import * as bsv from 'bsv';
 import * as protobuf from 'protobufjs';
 const messagesDefn = require('../messages.protobuf.bundle.json');
 const root = protobuf.Root.fromJSON(messagesDefn);
 import * as Long from 'long';
+import { EncryptedPayloadEnvelope } from './encrypted-payload-envelope';
 
+/**
+ * Tokenized.com Envelope Protocol Envelope
+ * https://github.com/tokenized/envelope
+ */
 export class MessageEnvelope {
-    private payloadIdentifier_;
-    private payloadType_;
-    private payload_;
-    static envelopeProtocolIdentifier = 'bd';
-    static envelopeVersion = '00';
-    private encryptedPayloads_: Array<{
-        sender: string,
-        receivers: Array<{
-            index: string,
-            encryptedKey: string
-        }>,
-        payload: any
-    }> = [];
-
-    private metanet_?: {
-        index?: any,
-        parent?: any;
-    } = undefined;
+    private metanet_;                           // Not used for now until.
+    private payloadIdentifier_;                 // File name or payload identifier. Can be file sha256 hash or txid.
+    private payloadType_;                       // Mime type of the payload
+    private payload_;                           // Optional non-encrypted payload
+    static envelopeProtocolIdentifier = 'bd';   // Magic number to signal Envelope Protocol (hex)
+    static envelopeVersion = '00';              // Version 0 (hex)
+    private encryptedPayloads_: Array<EncryptedPayloadEnvelope> = [];
+    /**
+     *
+     * @param payloadProtocol_ Default File system 'F' usage
+     * @param payloadVersion_ Version of the payload
+     */
     private constructor(
         private payloadProtocol_ = 'F',
         private payloadVersion_ = 0,
     ) {
+    }
+
+    getEnvelopeVersion() {
+        return MessageEnvelope.envelopeVersion;
+    }
+
+    getPayloadProtocol() {
+        return this.payloadProtocol_;
+    }
+
+    setPayloadProtocol(v) {
+        this.payloadProtocol_ = v;
     }
 
     setPayloadVersion(v) {
@@ -61,6 +99,38 @@ export class MessageEnvelope {
         return this.payload_;
     }
 
+    getEncryptedPayloadCount() {
+        return -1;
+    }
+
+    addEncryptedPayload(
+        payload: Buffer,
+        tx: bsv.Transaction,
+        senderIndex: number,
+        senderPrivateKey: bsv.PrivateKey,
+        receivers: bsv.PublicKey) {
+            /*
+        encryptedPayload, err := NewEncryptedPayload(payload, tx, senderIndex, sender,
+            receivers)
+        if err != nil {
+            return err
+        }
+        m.encryptedPayloads = append(m.encryptedPayloads, encryptedPayload)*/
+        return null
+    }
+
+    setEncryptedPayloads(v) {
+       return this.encryptedPayloads_ = v;
+    }
+
+    getEncryptedPayload(index: number): EncryptedPayloadEnvelope {
+        return this.encryptedPayloads_[index];
+    }
+
+    getEncryptedPayloads(): EncryptedPayloadEnvelope[] {
+        return this.encryptedPayloads_;
+    }
+
     toScript(): bsv.Script {
         const out = new bsv.Script();
         out.add(bsv.Opcode.OP_FALSE);
@@ -76,16 +146,17 @@ export class MessageEnvelope {
         message = Envelope.create({
             Version: this.payloadVersion_,
             Type: Buffer.from(this.payloadType_, 'utf8'),
-            Identifier: Buffer.from(this.payloadIdentifier_, 'utf8') // this.payloadIdentifier_,
+            Identifier: Buffer.from(this.payloadIdentifier_, 'utf8')
             // EncryptedPayloads: // added below
         }); // or use .fromObject if conversion is necessary
 
+        /*
         if (this.metanet_) {
             message.MetaNet = {
                 Index: this.metanet_.index,
                 Parent: this.metanet_.parent
-            };
-        }
+        };
+        */
         const EncryptedPayload = root.lookupType("protobuf.EncryptedPayload");
         const Receiver = root.lookupType("protobuf.Receiver");
         const protoBufEnvelopeEncryptedPayloads: any = [];
@@ -110,10 +181,6 @@ export class MessageEnvelope {
         const encodedProtobufMessage = Envelope.encode(message).finish();
         out.add(encodedProtobufMessage);
 
-        //console.log('encodedProtobufMessage', encodedProtobufMessage);
-        // const d = Envelope.decode(encodedProtobufMessage);
-        // console.log('dddd', d);
-
         if (this.payload_) {
             out.add(this.payload_);
         }
@@ -123,9 +190,7 @@ export class MessageEnvelope {
     static fromScript(scriptStr: bsv.Script): MessageEnvelope {
         const Envelope = root.lookupType("protobuf.Envelope");
         let script = new bsv.Script(scriptStr);
-        const message = new MessageEnvelope();
 
-        console.log('script', script.chunks);
         if (script.chunks[0].opcodenum !== bsv.Opcode.OP_FALSE) {
             throw new Error('Invalid script: OP_FALSE not found');
         }
@@ -135,98 +200,43 @@ export class MessageEnvelope {
         if (script.chunks[2].buf.toString('hex') !== (MessageEnvelope.envelopeProtocolIdentifier + MessageEnvelope.envelopeVersion)) {
             throw new Error('Invalid script: Version not found');
         }
-        if (script.chunks[3].buf.toString('utf8') !== 'F') {
-            throw new Error('Invalid script: File system F not found');
+        const pp = script.chunks[3].buf.toString('utf8');
+        switch (pp) {
+            case 'F':
+            // File system usage determined
+            break;
+            default:
+            console.log('Warning: unknown protocol usage type', pp);
         }
-
+        const message = new MessageEnvelope(pp);
         const envelope = Envelope.decode(script.chunks[4].buf);
         message.setPayloadVersion(Long.fromValue(envelope['Version']).toNumber());
         message.setPayloadType(envelope['Type'].toString('utf8'));
         message.setPayloadIdentifier(envelope['Identifier'].toString('utf8'));
+        message.setEncryptedPayloads(envelope['EncryptedPayloads']);
 
         if (script.chunks[5] && script.chunks[5].buf) {
             message.setPayload(script.chunks[5].buf);
         }
-
-        /*
-
-
-// Deserialize reads the Message from an OP_RETURN script.
-func Deserialize(buf *bytes.Reader) (*Message, error) {
-	var result Message
-
-	// Protocol ID
-	var opCode byte
-	var err error
-	opCode, result.payloadProtocol, err = bitcoin.ParsePushDataScript(buf)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to parse protocol ID")
-	}
-	if len(result.payloadProtocol) == 0 && opCode != bitcoin.OP_FALSE { // Non push data op code
-		return nil, ErrNotEnvelope
-	}
-
-	// Envelope
-	_, envelopeData, err := bitcoin.ParsePushDataScript(buf)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to read MetaNet data")
-	}
-
-	var envelope protobuf.Envelope
-	if len(envelopeData) != 0 {
-		if err = proto.Unmarshal(envelopeData, &envelope); err != nil {
-			return nil, errors.Wrap(err, "Failed envelope protobuf unmarshaling")
-		}
-	}
-
-	result.payloadVersion = envelope.GetVersion()
-	result.payloadType = envelope.GetType()
-	result.payloadIdentifier = envelope.GetIdentifier()
-
-	// MetaNet
-	pbMetaNet := envelope.GetMetaNet()
-	if pbMetaNet != nil {
-		result.metaNet = &MetaNet{
-			index:  pbMetaNet.GetIndex(),
-			parent: pbMetaNet.GetParent(),
-		}
-	}
-
-	// Encrypted payloads
-	pbEncryptedPayloads := envelope.GetEncryptedPayloads()
-	result.encryptedPayloads = make([]*EncryptedPayload, 0, len(pbEncryptedPayloads))
-	for _, pbEncryptedPayload := range pbEncryptedPayloads {
-		var encryptedPayload EncryptedPayload
-
-		// Sender
-		encryptedPayload.sender = pbEncryptedPayload.GetSender()
-
-		// Receivers
-		pbReceivers := pbEncryptedPayload.GetReceivers()
-		encryptedPayload.receivers = make([]*Receiver, 0, len(pbReceivers))
-		for _, pbReceiver := range pbReceivers {
-			encryptedPayload.receivers = append(encryptedPayload.receivers, &Receiver{
-				index:        pbReceiver.GetIndex(),
-				encryptedKey: pbReceiver.GetEncryptedKey(),
-			})
-		}
-
-		// Payload
-		encryptedPayload.payload = pbEncryptedPayload.GetPayload()
-
-		result.encryptedPayloads = append(result.encryptedPayloads, &encryptedPayload)
-	}
-
-	// Public payload
-	_, result.payload, err = bitcoin.ParsePushDataScript(buf)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to read payload")
-	}
-
-	return &result, nil
-}
-*/
-        console.log('message, message)', message);
         return message;
+    }
+
+    static fromTransaction(tx: bsv.Transaction): MessageEnvelope[] {
+        const envelopes: MessageEnvelope[] = [];
+        for (const txout of tx.outputs) {
+            try {
+                const s = MessageEnvelope.fromScript(txout.script);
+                if (s) {
+                    envelopes.push(s)
+                }
+            } catch (ex) {
+                // Not valid output for MessageEnvelope, skip it...
+            }
+        }
+        return envelopes;
+    }
+
+    static fromRawTransaction(rawtx: string): MessageEnvelope[] {
+        return MessageEnvelope.fromTransaction(new bsv.Transaction(rawtx));
     }
 }

@@ -1,4 +1,3 @@
-
 /**
 Open BSV License
 Copyright (c) 2020 MatterPool Inc.
@@ -26,17 +25,22 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-import { MessageEnvelope } from './message-envelope';
+import * as bsv from 'bsv';
 
-try {
-  if (window) {
-    window['bsvenvelope'] = {
-      Envelope: MessageEnvelope,
-    };
-  }
-}
-catch (ex) {
-  // Window is not defined, must be running in windowless env...
-}
+// Not used yet
+export class MetanetEnvelope {
 
-export var Envelope = MessageEnvelope;
+    private constructor(private index_: number, private publicKey_: bsv.PublicKey, private parent_?: string) {}
+
+    index() {
+        return this.index_;
+    }
+
+    publicKey() {
+        return this.publicKey_;
+    }
+
+    parent() {
+        return this.parent_;
+    }
+}
